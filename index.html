@@ -59,13 +59,14 @@
     font-weight: 500;
   }
   #sliderBtn:hover, #saveBtn:hover { background: #46207f; }
-  #clearAllBtn {
+  #pasteBtn, #clearAllBtn {
     background: #fff;
     color: #5b2d9e;
     border-color: #5b2d9e;
     font-weight: 500;
   }
-  #clearAllBtn:hover { background: #efe7fb; }
+  #pasteBtn:hover, #clearAllBtn:hover { background: #efe7fb; }
+  #pasteMsg { color: #c0392b; font-size: 13px; margin-top: 6px; display: none; }
 
   #errMsg {
     color: #c0392b;
@@ -346,11 +347,13 @@
 
 <textarea id="lyricsInput" placeholder="Paste lyrics here"></textarea>
 <div class="toolbar">
+  <button id="pasteBtn">Paste</button>
   <button id="sliderBtn">Slider</button>
   <button id="saveBtn">Save</button>
   <button id="clearAllBtn">Clear All</button>
 </div>
 <div id="errMsg">Paste some lyrics first.</div>
+<div id="pasteMsg">Clipboard access is blocked here. Long-press the box and choose Paste instead.</div>
 
 <div id="savedSection">
   <h2>Saved</h2>
@@ -489,6 +492,20 @@ document.getElementById('sliderBtn').addEventListener('click', () => {
   }
   errEl.style.display = 'none';
   openPopup(raw, titleFor(raw));
+});
+
+document.getElementById('pasteBtn').addEventListener('click', async () => {
+  const input = document.getElementById('lyricsInput');
+  const msg = document.getElementById('pasteMsg');
+  msg.style.display = 'none';
+  try {
+    const text = await navigator.clipboard.readText();
+    input.value = text;
+    document.getElementById('errMsg').style.display = 'none';
+  } catch (e) {
+    msg.style.display = 'block';
+    input.focus();
+  }
 });
 
 document.getElementById('clearAllBtn').addEventListener('click', () => {

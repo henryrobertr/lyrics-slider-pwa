@@ -1,4 +1,4 @@
-const CACHE = 'lyrics-slider-v1';
+const CACHE = 'lyrics-slider-v2';
 const ASSETS = [
   './',
   './index.html',
