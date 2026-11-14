@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lyrics Slider</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#5b2d9e">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Lyrics Slider">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  * { box-sizing: border-box; }
+  html { color-scheme: light; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    max-width: 700px;
+    margin: 40px auto;
+    padding: 0 20px;
+    color: #2a1650;
+    background: #f7f3fd;
+  }
+  h1 {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 16px;
+  }
+  textarea {
+    width: 100%;
+    min-height: 220px;
+    font-size: 14px;
+    padding: 12px;
+    border: 1px solid #cdbbea;
+    border-radius: 8px;
+    resize: vertical;
+    font-family: inherit;
+  }
+  button {
+    cursor: pointer;
+    border: 1px solid #cdbbea;
+    background: #fff;
+    color: #4b2480;
+    border-radius: 8px;
+    padding: 12px 22px;
+    font-size: 16px;
+    transition: background 0.15s;
+  }
+  button:hover:not(:disabled) { background: #efe7fb; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .toolbar { margin-top: 14px; display: flex; gap: 10px; flex-wrap: wrap; }
+  #sliderBtn, #saveBtn {
+    background: #5b2d9e;
+    color: #fff;
+    border-color: #5b2d9e;
+    font-weight: 500;
+  }
+  #sliderBtn:hover, #saveBtn:hover { background: #46207f; }
+  #clearAllBtn {
+    background: #fff;
+    color: #5b2d9e;
+    border-color: #5b2d9e;
+    font-weight: 500;
+  }
+  #clearAllBtn:hover { background: #efe7fb; }
+
+  #errMsg {
+    color: #c0392b;
+    font-size: 13px;
+    margin-top: 6px;
+    display: none;
+  }
+
+  /* Saved items list */
+  #savedSection { margin-top: 28px; }
+  #savedSection h2 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: #4b2480;
+  }
+  #savedList { display: flex; flex-direction: column; gap: 8px; }
+  .saved-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    background: #fff;
+    border: 1px solid #ddd0f2;
+    border-radius: 8px;
+    padding: 10px 12px;
+    cursor: pointer;
+  }
+  .saved-item:hover { background: #f3ecfc; border-color: #b79ce8; }
+  .saved-item-title {
+    font-size: 14px;
+    color: #2a1650;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .saved-item-meta {
+    font-size: 11px;
+    color: #8a77ab;
+    margin-top: 2px;
+  }
+  .saved-item-remove {
+    flex: 0 0 auto;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border-radius: 50%;
+    font-size: 14px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #8a77ab;
+    border-color: #ddd0f2;
+  }
+  .saved-item-remove:hover { background: #fdecea; color: #c0392b; border-color: #c0392b; }
+  #emptySaved { font-size: 13px; color: #8a77ab; }
+
+  /* Name prompt modal */
+  #nameModalOverlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(40,15,80,0.55);
+    z-index: 2000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  #nameModal {
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px;
+    width: 100%;
+    max-width: 360px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  }
+  #nameModal h3 {
+    margin: 0 0 12px;
+    font-size: 16px;
+    font-weight: 600;
+  }
+  #nameModalInput {
+    width: 100%;
+    font-size: 14px;
+    padding: 10px 12px;
+    border: 1px solid #cdbbea;
+    border-radius: 8px;
+    font-family: inherit;
+  }
+  #nameModalActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 16px;
+  }
+  #nameModalActions button { padding: 8px 16px; font-size: 14px; }
+  #nameModalSave {
+    background: #5b2d9e;
+    color: #fff;
+    border-color: #5b2d9e;
+  }
+  #nameModalSave:hover { background: #46207f; }
+
+  /* Popup viewer */
+  #viewer {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(43, 16, 92, 0.95);
+    z-index: 1000;
+    padding: 40px 20px;
+    overflow-y: auto;
+  }
+  #viewerInner {
+    max-width: 700px;
+    margin: 0 auto;
+    position: relative;
+    transform: rotate(0deg);
+    transition: transform 0.4s ease, width 0.4s ease, height 0.4s ease;
+  }
+  #viewerInner.rotated {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    width: 100vh;
+    height: 100vw;
+    max-width: none;
+    margin: 0;
+    padding: 24px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    transform: translate(-50%, -50%) rotate(90deg);
+  }
+
+  #popupControls {
+    position: absolute;
+    top: -8px;
+    right: 0;
+    display: flex;
+    gap: 8px;
+  }
+  #popupControls button {
+    background: rgba(255,255,255,0.15);
+    color: #fff;
+    border: none;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    font-size: 16px;
+    line-height: 1;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #popupControls button:hover { background: rgba(255,255,255,0.28); }
+
+  #viewerInner.rotated #popupControls {
+    top: 24px;
+    right: 24px;
+  }
+  #viewerInner.rotated #popupControls button {
+    width: 48px;
+    height: 48px;
+    font-size: 22px;
+  }
+
+  #popupTitle {
+    text-align: center;
+    font-size: 19px;
+    color: #fff;
+    margin: 0 0 4px;
+    font-weight: 700;
+  }
+  #pagLabel {
+    text-align: center;
+    font-size: 14px;
+    color: #f1e9ff;
+    margin: 0 0 10px;
+    font-weight: 600;
+  }
+
+  #viewerBody {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-top: 36px;
+  }
+  #slideCard {
+    background: #fff;
+    border: 1px solid #ddd0f2;
+    border-radius: 14px;
+    padding: 28px 24px;
+    min-height: 180px;
+    flex: 1;
+  }
+  .couplet { margin-bottom: 18px; }
+  .couplet:last-child { margin-bottom: 0; }
+  .main-line {
+    font-size: 19px;
+    line-height: 1.5;
+    color: #2a1650;
+  }
+  .secondary-line {
+    font-size: 14px;
+    line-height: 1.4;
+    color: #7a5fb0;
+    font-style: italic;
+    margin-top: 4px;
+  }
+
+  .nav-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  #dots {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: center;
+    flex: 1;
+  }
+  .dot-btn {
+    font-size: 13px;
+    padding: 7px 14px;
+    border-radius: 999px;
+  }
+  .dot-btn.active {
+    background: #5b2d9e;
+    color: #fff;
+    border-color: #5b2d9e;
+  }
+  .dot-btn.chorus {
+    border-color: #a64dd6;
+    color: #7b2fb0;
+  }
+  .dot-btn.chorus.active {
+    background: #a64dd6;
+    color: #fff;
+    border-color: #a64dd6;
+  }
+  .arrow-btn {
+    font-size: 18px;
+    padding: 10px 16px;
+    border-radius: 999px;
+  }
+
+  /* Landscape: nav moves to the right side, buttons stacked vertically */
+  @media (orientation: landscape) {
+    #viewerBody {
+      flex-direction: row;
+      align-items: stretch;
+    }
+    .nav-row {
+      flex-direction: column;
+      width: 90px;
+      flex: 0 0 90px;
+      justify-content: center;
+      gap: 14px;
+    }
+    #dots {
+      flex-direction: column;
+      order: 2;
+    }
+    #prevBtn { order: 1; }
+    #nextBtn { order: 3; }
+  }
+</style>
+</head>
+<body>
+
+<h1>Lyrics Slider</h1>
+
+<textarea id="lyricsInput" placeholder="Paste lyrics here"></textarea>
+<div class="toolbar">
+  <button id="sliderBtn">Slider</button>
+  <button id="saveBtn">Save</button>
+  <button id="clearAllBtn">Clear All</button>
+</div>
+<div id="errMsg">Paste some lyrics first.</div>
+
+<div id="savedSection">
+  <h2>Saved</h2>
+  <div id="savedList"></div>
+  <div id="emptySaved">Nothing saved yet.</div>
+</div>
+
+<div id="nameModalOverlay">
+  <div id="nameModal">
+    <h3>Name this entry</h3>
+    <input type="text" id="nameModalInput" placeholder="Enter a name">
+    <div id="nameModalActions">
+      <button id="nameModalCancel">Cancel</button>
+      <button id="nameModalSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="viewer">
+  <div id="viewerInner">
+    <div id="popupControls">
+      <button id="rotateBtn" aria-label="Rotate">&#8635;</button>
+      <button id="closeBtn" aria-label="Close">&#10005;</button>
+    </div>
+    <div id="popupTitle"></div>
+    <div id="pagLabel"></div>
+    <div id="viewerBody">
+      <div id="slideCard">
+        <div id="slideContent"></div>
+      </div>
+      <div class="nav-row">
+        <button id="prevBtn" class="arrow-btn" aria-label="Previous">&#8592;</button>
+        <div id="dots"></div>
+        <button id="nextBtn" class="arrow-btn" aria-label="Next">&#8594;</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'lyricsSliderSaves';
+
+function parseLyrics(raw) {
+  // Sections are split on ==== only — this boundary is untouched.
+  const sections = raw.split(/^\s*={4,}\s*$/m).map(s => s.trim()).filter(Boolean);
+  return sections.map((sec, idx) => {
+    const rawLines = sec.split('\n').map(l => l.trim()).filter(l => l.length);
+    let title = rawLines[0] || '';
+    let bodyLines = rawLines.slice(1);
+
+    if (/^-{2,}$/.test(title) || rawLines.length === 0) {
+      title = idx === 0 ? 'Chorus' : ('Verse ' + idx);
+      bodyLines = rawLines;
+    }
+
+    // ---- lines are just visual separators between lines — drop them.
+    // Each remaining plain-text line starts a new line of lyrics; a
+    // following [bracketed] line is that line's translation.
+    const contentLines = bodyLines.filter(l => !/^-{2,}$/.test(l));
+
+    const parsedCouplets = [];
+    contentLines.forEach(l => {
+      const m = l.match(/^\[(.*)\]$/);
+      if (m) {
+        const last = parsedCouplets[parsedCouplets.length - 1];
+        if (last && !last.secondary) {
+          last.secondary = m[1];
+        } else {
+          parsedCouplets.push({ main: '', secondary: m[1] });
+        }
+      } else {
+        parsedCouplets.push({ main: l, secondary: '' });
+      }
+    });
+
+    const isChorus = /பல்லவி/.test(title) || /^chorus$/i.test(title);
+    const label = isChorus ? 'Chorus' : title;
+    return { label, isChorus, couplets: parsedCouplets };
+  });
+}
+
+let slides = [];
+let current = 0;
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function renderSlide() {
+  const s = slides[current];
+  document.getElementById('pagLabel').textContent = s.label;
+
+  const content = s.couplets.map(c => {
+    let html = '<div class="couplet">';
+    html += '<div class="main-line">' + escapeHtml(c.main) + '</div>';
+    if (c.secondary) {
+      html += '<div class="secondary-line">' + escapeHtml(c.secondary) + '</div>';
+    }
+    html += '</div>';
+    return html;
+  }).join('');
+  document.getElementById('slideContent').innerHTML = content;
+
+  const dots = document.getElementById('dots');
+  dots.innerHTML = '';
+  slides.forEach((sl, i) => {
+    const d = document.createElement('button');
+    d.textContent = sl.label;
+    d.className = 'dot-btn' + (sl.isChorus ? ' chorus' : '') + (i === current ? ' active' : '');
+    d.onclick = () => { current = i; renderSlide(); };
+    dots.appendChild(d);
+  });
+
+  document.getElementById('prevBtn').disabled = current === 0;
+  document.getElementById('nextBtn').disabled = current === slides.length - 1;
+}
+
+function openPopup(text, displayTitle) {
+  slides = parseLyrics(text);
+  current = 0;
+  document.getElementById('popupTitle').textContent = displayTitle || '';
+  document.getElementById('viewerInner').classList.remove('rotated');
+  document.getElementById('viewer').style.display = 'block';
+  renderSlide();
+}
+
+document.getElementById('sliderBtn').addEventListener('click', () => {
+  const raw = document.getElementById('lyricsInput').value;
+  const errEl = document.getElementById('errMsg');
+
+  if (!raw || !raw.trim()) {
+    errEl.style.display = 'block';
+    return;
+  }
+  errEl.style.display = 'none';
+  openPopup(raw, titleFor(raw));
+});
+
+document.getElementById('clearAllBtn').addEventListener('click', () => {
+  document.getElementById('lyricsInput').value = '';
+  document.getElementById('errMsg').style.display = 'none';
+});
+
+document.getElementById('prevBtn').addEventListener('click', () => {
+  if (current > 0) { current--; renderSlide(); }
+});
+document.getElementById('nextBtn').addEventListener('click', () => {
+  if (current < slides.length - 1) { current++; renderSlide(); }
+});
+
+document.getElementById('closeBtn').addEventListener('click', () => {
+  document.getElementById('viewer').style.display = 'none';
+});
+
+document.getElementById('rotateBtn').addEventListener('click', () => {
+  document.getElementById('viewerInner').classList.toggle('rotated');
+});
+
+document.addEventListener('keydown', (e) => {
+  const viewerOpen = document.getElementById('viewer').style.display === 'block';
+  if (!viewerOpen) return;
+  if (e.key === 'Escape') {
+    document.getElementById('viewer').style.display = 'none';
+  } else if (e.key === 'ArrowLeft') {
+    document.getElementById('prevBtn').click();
+  } else if (e.key === 'ArrowRight') {
+    document.getElementById('nextBtn').click();
+  }
+});
+
+/* ---------- Saved items (localStorage) ---------- */
+
+function loadSaved() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function writeSaved(items) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  } catch (e) {
+    console.error('Could not save to local storage', e);
+  }
+}
+
+function titleFor(text) {
+  const firstLine = text.split('\n').map(l => l.trim()).find(l => l.length);
+  if (!firstLine) return 'Untitled';
+  return firstLine.length > 50 ? firstLine.slice(0, 50) + '…' : firstLine;
+}
+
+function renderSavedList() {
+  const items = loadSaved();
+  const list = document.getElementById('savedList');
+  const empty = document.getElementById('emptySaved');
+  list.innerHTML = '';
+
+  if (!items.length) {
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  items.forEach(item => {
+    const row = document.createElement('div');
+    row.className = 'saved-item';
+
+    const textWrap = document.createElement('div');
+    textWrap.style.overflow = 'hidden';
+    const titleEl = document.createElement('div');
+    titleEl.className = 'saved-item-title';
+    titleEl.textContent = item.title;
+    const metaEl = document.createElement('div');
+    metaEl.className = 'saved-item-meta';
+    metaEl.textContent = new Date(item.savedAt).toLocaleString();
+    textWrap.appendChild(titleEl);
+    textWrap.appendChild(metaEl);
+
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'saved-item-remove';
+    removeBtn.innerHTML = '&#10005;';
+    removeBtn.setAttribute('aria-label', 'Remove');
+    removeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const remaining = loadSaved().filter(i => i.id !== item.id);
+      writeSaved(remaining);
+      renderSavedList();
+    });
+
+    row.addEventListener('click', () => openPopup(item.text, item.title));
+
+    row.appendChild(textWrap);
+    row.appendChild(removeBtn);
+    list.appendChild(row);
+  });
+}
+
+let pendingSaveText = null;
+
+function openNameModal(defaultName) {
+  const overlay = document.getElementById('nameModalOverlay');
+  const input = document.getElementById('nameModalInput');
+  input.value = defaultName;
+  overlay.style.display = 'flex';
+  input.focus();
+  input.select();
+}
+
+function closeNameModal() {
+  document.getElementById('nameModalOverlay').style.display = 'none';
+  pendingSaveText = null;
+}
+
+function confirmSave() {
+  if (pendingSaveText === null) return;
+  const input = document.getElementById('nameModalInput');
+  const trimmedName = input.value.trim();
+
+  const items = loadSaved();
+  items.unshift({
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+    title: trimmedName || titleFor(pendingSaveText),
+    text: pendingSaveText,
+    savedAt: Date.now()
+  });
+  writeSaved(items);
+  renderSavedList();
+  closeNameModal();
+}
+
+document.getElementById('saveBtn').addEventListener('click', () => {
+  const raw = document.getElementById('lyricsInput').value;
+  const errEl = document.getElementById('errMsg');
+
+  if (!raw || !raw.trim()) {
+    errEl.style.display = 'block';
+    return;
+  }
+  errEl.style.display = 'none';
+
+  pendingSaveText = raw;
+  openNameModal(titleFor(raw));
+});
+
+document.getElementById('nameModalSave').addEventListener('click', confirmSave);
+document.getElementById('nameModalCancel').addEventListener('click', closeNameModal);
+document.getElementById('nameModalInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); confirmSave(); }
+  else if (e.key === 'Escape') { closeNameModal(); }
+});
+document.getElementById('nameModalOverlay').addEventListener('click', (e) => {
+  if (e.target.id === 'nameModalOverlay') closeNameModal();
+});
+
+renderSavedList();
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch((err) => console.warn('SW registration failed', err));
+  });
+}
+</script>
+
+</body>
+</html>
